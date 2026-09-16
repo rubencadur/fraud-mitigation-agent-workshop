@@ -1,9 +1,17 @@
+"""Shared data shapes for tool execution and agent responses.
+
+Every tool in `tools/` returns a `ToolResult` and every call is appended to a
+"trace" list, so the full decision path (what was called, with what data, how
+long it took, whether it failed) can be inspected and audited later.
+"""
 from dataclasses import dataclass, field
 from typing import Any
 
 
 @dataclass
 class ToolResult:
+    """Uniform envelope returned by every tool so the agent trace is consistent."""
+
     tool_name: str
     status: str = "success"
     data: Any = None
@@ -24,6 +32,8 @@ class ToolResult:
 
 @dataclass
 class AgentResponse:
+    """Final payload returned by `FraudAgent`, including the full tool-call trace."""
+
     response_type: str
     content: str = ""
     tool_calls: list = field(default_factory=list)

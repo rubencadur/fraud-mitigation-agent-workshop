@@ -1,3 +1,9 @@
+"""Builds the evidence document persisted for every scored transaction.
+
+This is the audit trail: enough detail (components, weights, signals, rules,
+similarity, full tool trace) to reconstruct *why* a decision was made without
+re-running the agent, and to support a future human review or feedback loop.
+"""
 from datetime import datetime, timezone
 import uuid
 
@@ -22,6 +28,8 @@ def make_evidence(transaction_id, score_result, decision, signals, rules, simila
 
 
 def persist_evidence(collection, evidence):
+    # Copy so the caller's in-memory `evidence` dict is never mutated by the
+    # insert (both InMemoryCollection and pymongo add an _id on insert).
     document = dict(evidence)
     result = collection.insert_one(document)
     document["_id"] = str(result.inserted_id)

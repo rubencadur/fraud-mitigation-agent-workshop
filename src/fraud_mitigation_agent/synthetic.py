@@ -1,3 +1,9 @@
+"""Synthetic fixture data: the only data this workshop is allowed to use.
+
+Everything here — customers, transactions, known fraud patterns, rule
+thresholds — is fabricated for teaching purposes and tagged with a
+`source_tag` so it can be identified and safely deleted later.
+"""
 from datetime import datetime, timezone
 from .embeddings.manual import deterministic_embedding
 
@@ -14,12 +20,16 @@ def _pattern(tx_id, fraud_type, text):
 
 
 def demo_documents():
+    # Four known fraud "signatures" used as the fraud_patterns collection that
+    # vector search compares new transactions against.
     patterns = [
         _pattern("pattern-001", "account_takeover", "new device new ip impossible travel odd hour credential reset high amount"),
         _pattern("pattern-002", "card_testing", "many small attempts new ip repeated velocity web checkout"),
         _pattern("pattern-003", "synthetic_identity", "new customer device mismatch unusual geo high amount mobile"),
         _pattern("pattern-004", "money_mule", "rapid transfer beneficiary new device distant geo unusual hour"),
     ]
+    # Three customer archetypes, each paired 1:1 below with a transaction that
+    # is expected to land in a different decision band (APPROVE/STEP-UP/DENY).
     customers = [
         {
             "customer_id": "customer-normal",
@@ -53,6 +63,8 @@ def demo_documents():
             "source_tag": "fraud_mitigation_agent_synthetic",
         },
     ]
+    # tx-normal-001 -> expected APPROVE, tx-stepup-001 -> expected STEP-UP,
+    # tx-risky-001 -> expected DENY. Notebooks reference these ids directly.
     transactions = [
         {
             "tx_id": "tx-normal-001", "customer_id": "customer-normal", "amount": 850,
@@ -91,6 +103,13 @@ def demo_documents():
 
 
 def seed_demo_data(db, reset=False):
+    """Load the fixture data into the given database (Atlas or InMemoryDB).
+
+    Idempotent by design: replace_one(upsert=True) means re-running this
+    notebook cell never creates duplicates. `reset=True` additionally wipes
+    only documents tagged as synthetic workshop data first, so it is safe to
+    call against a shared Atlas cluster without touching unrelated data.
+    """
     docs = demo_documents()
     collections = {
         "patterns": db["fraud_patterns"],
@@ -107,6 +126,9 @@ def seed_demo_data(db, reset=False):
         collections["customers"].replace_one({"customer_id": document["customer_id"]}, document, upsert=True)
     for document in docs["transactions"]:
         document = dict(document)
+        # Fixture transactions don't carry a natural-language description, so
+        # one is synthesized here purely from the ground-truth label, then
+        # embedded — giving vector search something meaningful to match on.
         document["fraud_signature_text"] = (
             "new device new ip impossible travel odd hour high amount"
             if document["ground_truth_fraud"] else

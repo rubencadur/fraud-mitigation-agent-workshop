@@ -2,6 +2,9 @@ class MockLLMProvider:
     """Offline provider for Colab: deterministic, no network and no API key."""
 
     def complete(self, prompt: str, system: str | None = None) -> str:
+        # Trivial keyword matching instead of a real model: good enough to
+        # demonstrate the agent's plumbing (tool calls, trace, decision) end
+        # to end without requiring anyone to bring an API key.
         text = (prompt or "").lower()
         if "fraud mitigation agent" in text or "workshop" in text:
             return "El Fraud Mitigation Agent separa herramientas de contexto, scoring determinístico y decisión auditable."

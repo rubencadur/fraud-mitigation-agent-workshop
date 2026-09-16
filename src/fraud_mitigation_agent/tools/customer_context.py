@@ -1,3 +1,9 @@
+"""Tool: fetch the customer's known baseline (usual devices/IPs/amounts).
+
+This is what turns a transaction from an isolated event into something that
+can be compared against "normal for this customer" — the input every other
+downstream tool (rules, behavior) needs.
+"""
 from ._common import run_tool
 
 

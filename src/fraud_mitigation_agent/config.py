@@ -1,3 +1,10 @@
+"""Central runtime configuration, loaded from environment variables / Colab Secrets.
+
+Keeping all tunables in one dataclass means notebooks never hard-code a
+database name or index name directly — they read `Settings.from_env()` once
+and pass it around, so the same notebook works locally, in Colab, or against
+a different Atlas project just by changing env vars.
+"""
 from dataclasses import dataclass
 import os
 
@@ -10,6 +17,9 @@ class Settings:
     vector_index_name: str = "fraud_vector_index"
     auto_embedding_index_name: str = "fraud_auto_embedding_index"
     embedding_dimensions: int = 8
+    # llm_provider is documentation-only today: notebooks that want a real LLM
+    # instantiate OpenAICompatibleProvider directly with these values. There is
+    # no factory here that switches on llm_provider.
     llm_provider: str = "mock"
     llm_api_key: str | None = None
     llm_base_url: str | None = None
@@ -17,6 +27,8 @@ class Settings:
 
     @classmethod
     def from_env(cls, **overrides):
+        # `overrides` lets tests/notebooks pin specific values (e.g. an
+        # in-memory database name) without touching the process environment.
         values = {
             "mongodb_uri": os.getenv("MONGODB_URI"),
             "database_name": os.getenv("FRAUD_MITIGATION_AGENT_DATABASE", "fraud_mitigation_agent_workshop"),

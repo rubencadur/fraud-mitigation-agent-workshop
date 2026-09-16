@@ -8,7 +8,7 @@ Repositorio incremental para construir un prototipo didáctico de prevención de
 
 ## Rutas
 
-### Ruta core de 3 horas
+### Ruta core
 
 1. `notebooks/core/00_setup_workshop.ipynb` — [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rubencadur/fraud-mitigation-agent-workshop/blob/main/notebooks/core/00_setup_workshop.ipynb)
 2. `notebooks/core/01_prompt_agent.ipynb` — [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rubencadur/fraud-mitigation-agent-workshop/blob/main/notebooks/core/01_prompt_agent.ipynb)
@@ -42,7 +42,7 @@ Repositorio incremental para construir un prototipo didáctico de prevención de
 4. Ejecutar primero `00_setup_workshop`.
 5. Ejecutar los notebooks en orden.
 
-Los notebooks funcionan con `MockLLMProvider` sin API externa. Para probar un LLM compatible con OpenAI, configurar opcionalmente:
+Los notebooks funcionan con `MockLLMProvider` sin API externa. Si quieres probar un LLM real, `OpenAICompatibleProvider` acepta cualquier endpoint compatible con la API de OpenAI, así que puedes usar cualquier servicio, propio o de un tercero. Configura opcionalmente en Colab Secrets:
 
 ```text
 LLM_PROVIDER=openai_compatible
@@ -50,5 +50,15 @@ LLM_API_KEY=...
 LLM_BASE_URL=...
 LLM_MODEL=...
 ```
+
+### Opciones gratuitas
+
+Estos tres servicios exponen un endpoint compatible con OpenAI y su capa gratuita no pide tarjeta de crédito al registrarse (verifica siempre los términos vigentes, ya que límites y modelos disponibles cambian con el tiempo):
+
+| Proveedor | Obtener API key | `LLM_BASE_URL` | `LLM_MODEL` de ejemplo | Límites free tier (referencial) |
+|---|---|---|---|---|
+| **Groq Cloud** | [console.groq.com/keys](https://console.groq.com/keys) | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` | 30 req/min, 14 400 req/día |
+| **NVIDIA NIM** (build.nvidia.com) | [build.nvidia.com](https://build.nvidia.com) | `https://integrate.api.nvidia.com/v1` | `meta/llama-3.1-70b-instruct` | 1000 créditos gratis al registrarte, 40 req/min |
+| **Google AI Studio** (Gemini) | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.5-flash` | ~10-15 req/min según el modelo |
 
 El scoring y la decisión final son determinísticos; el LLM solo interpreta, orquesta y explica.

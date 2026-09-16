@@ -1,3 +1,4 @@
+"""Tool: fetch the transaction under evaluation. First step of every agent run."""
 from ._common import run_tool
 
 

@@ -1,3 +1,10 @@
+"""Vector similarity search, with a transparent fallback when Atlas isn't available.
+
+`search_frauds` is the single entry point tools/similarity.py calls: it tries
+a real Atlas $vectorSearch aggregation first and, only if that raises (no
+Atlas connection, index not built yet, InMemoryDB, etc.), falls back to
+brute-force cosine similarity computed in Python via `local_similarity`.
+"""
 import time
 import numpy as np
 
@@ -9,6 +16,12 @@ def cosine_similarity(a, b):
 
 
 def local_similarity(collection, query_vector, limit=3, source_tag=None):
+    """O(n) brute-force fallback: score every embedded document and sort.
+
+    Fine for a workshop's handful of fraud_patterns documents; would not
+    scale to a production-sized pattern library, which is exactly the
+    problem Atlas Vector Search's ANN index solves.
+    """
     query = {"embedding": {"$exists": True}}
     if source_tag:
         query["source_tag"] = source_tag
@@ -55,6 +68,10 @@ def search_frauds(collection, query_vector, index_name="fraud_vector_index", pat
             "error": None,
         }
     except Exception as exc:
+        # Broad except by design: InMemoryDB raises RuntimeError, a missing
+        # Atlas index raises a pymongo OperationFailure, a network issue
+        # raises something else entirely — all of them should degrade to the
+        # local fallback rather than crash the agent.
         if not allow_fallback:
             raise
         rows = local_similarity(collection, query_vector, limit, source_tag)

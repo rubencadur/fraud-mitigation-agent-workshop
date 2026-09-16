@@ -1,8 +1,18 @@
+"""In-memory MongoDB-compatible fallback used when `MONGODB_URI` is not set.
+
+Implements just enough of the pymongo collection API (find_one, find,
+replace_one, delete_many, insert_one) for the workshop notebooks to run fully
+offline. `$vectorSearch` aggregation is intentionally unsupported here — that
+gap is what motivates the cosine-similarity fallback in
+`vector_search/queries.py`.
+"""
 import copy
 import uuid
 
 
 def _matches(doc, query):
+    # Supports only the query operators the workshop actually needs
+    # ($exists, $in) plus plain equality — not a full Mongo query engine.
     for key, expected in query.items():
         actual = doc.get(key)
         if isinstance(expected, dict):
@@ -43,6 +53,8 @@ class InMemoryCollection:
         self.rows.append(item)
         return _InsertResult(item["_id"])
     def aggregate(self, pipeline):
+        # No $vectorSearch here on purpose: callers must catch this and fall
+        # back to local cosine similarity (see vector_search/queries.py).
         raise RuntimeError("Atlas aggregation unavailable in local memory mode")
 
 
@@ -58,11 +70,19 @@ def _project(row, projection):
 
 
 class InMemoryDB:
+    """Mimics `client[database_name]` / `db.collection_name` access from pymongo.
+
+    Collections are created lazily on first access, matching how a real
+    MongoDB database behaves (no schema or collection creation step needed).
+    """
+
     def __init__(self): self._collections = {}
     def __getitem__(self, name):
         return self.__getattr__(name)
 
     def __getattr__(self, name):
+        # Enables `db.transactions`, `db.customer_state`, etc., the same
+        # attribute-style access pymongo's Database object supports.
         if name.startswith("_"): raise AttributeError(name)
         self._collections.setdefault(name, InMemoryCollection())
         return self._collections[name]

@@ -1,3 +1,4 @@
+"""Tools: turn the outputs of every other tool into a final, evidenced decision."""
 from ._common import run_tool
 from ..audit import make_evidence, persist_evidence
 from ..scoring import score_components, decision_from_score, build_reason_codes
@@ -5,6 +6,8 @@ from ..scoring import score_components, decision_from_score, build_reason_codes
 
 def score_and_decide(db, transaction, behavior_result, rules_result, similarity_result, trace=None):
     def work():
+        # Only the best (first) similarity match feeds the score; the full
+        # ranked list still goes into the evidence document below.
         similarity = (similarity_result.get("results") or [{}])[0]
         config = db.risk_rules_config.find_one({"config_id": "risk_rules_config"}, {"_id": 0}) or {}
         score_result = score_components(
@@ -30,6 +33,8 @@ def score_and_decide(db, transaction, behavior_result, rules_result, similarity_
 
 
 def persist_decision(db, decision_result):
+    """Write two documents: the full evidence (risk_evidence) and a compact
+    outcome record (final_outcome) that's cheap to query for reporting."""
     def work():
         evidence = persist_evidence(db.risk_evidence, decision_result["evidence"])
         outcome = {

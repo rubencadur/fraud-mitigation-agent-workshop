@@ -425,7 +425,7 @@ It demonstrates an `autoEmbed` index definition and text-based vector search. Av
 
 ### Optional provider
 
-`OpenAICompatibleProvider` can call an OpenAI-compatible chat endpoint when configured with:
+`OpenAICompatibleProvider` can call any OpenAI-compatible chat endpoint when configured with:
 
 ```text
 LLM_PROVIDER=openai_compatible
@@ -435,6 +435,16 @@ LLM_MODEL=...
 ```
 
 No key or endpoint should be committed to GitHub. The optional provider is for explanation and experimentation; it is not trusted with the final risk decision.
+
+Because the workshop is meant to be reusable across clients that may not have a paid LLM subscription, participants should be free to point `LLM_BASE_URL` at any OpenAI-compatible endpoint. The following free tiers do not require a credit card at signup (verify current terms before each workshop, since limits and model names change over time):
+
+| Provider | Get an API key | `LLM_BASE_URL` | Example `LLM_MODEL` | Free tier limits (indicative) |
+|---|---|---|---|---|
+| Groq Cloud | console.groq.com/keys | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` | 30 req/min, 14,400 req/day |
+| NVIDIA NIM (build.nvidia.com) | build.nvidia.com | `https://integrate.api.nvidia.com/v1` | `meta/llama-3.1-70b-instruct` | 1,000 free credits on signup, 40 req/min |
+| Google AI Studio (Gemini) | aistudio.google.com/apikey | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.5-flash` | ~10-15 req/min depending on model |
+
+No code change is required to use any of these: they all speak the OpenAI chat-completions protocol, so swapping providers is a matter of changing the three env vars above. Do not hard-code a specific provider as a dependency of the core path — `MockLLMProvider` must remain the default and the only provider required to complete the workshop.
 
 ### Future provider work
 
