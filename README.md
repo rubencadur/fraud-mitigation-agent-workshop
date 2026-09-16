@@ -37,7 +37,7 @@ Repositorio incremental para construir un prototipo didáctico de prevención de
 ## Ejecutar en Google Colab
 
 1. Abrir el notebook con el link "Open In Colab" correspondiente en la sección [Rutas](#rutas).
-2. En `00_setup_workshop`, configurar `REPO_URL` con la URL del repositorio.
+2. En `00_setup_workshop`, `REPO_URL` ya viene precargada con este repositorio; cámbiala solo si vas a trabajar sobre tu propio fork.
 3. Crear en Colab Secret el valor `MONGODB_URI`.
 4. Ejecutar primero `00_setup_workshop`.
 5. Ejecutar los notebooks en orden.
