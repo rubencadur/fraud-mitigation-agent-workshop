@@ -404,7 +404,7 @@ The manual path is implemented in:
 * `src/fraud_mitigation_agent/embeddings/manual.py`
 * `src/fraud_mitigation_agent/vector_search/indexes.py`
 * `src/fraud_mitigation_agent/vector_search/queries.py`
-* `notebooks/core/06_vector_search_manual.ipynb`
+* `notebooks/core/06_vector_search_manual.ipynb` (self-contained equivalent, see section 13 — teaches the same logic inline rather than importing the module above)
 
 It stores an embedding array in `fraud_patterns.embedding`, creates a vector index definition, and uses `$vectorSearch` when Atlas is available. If aggregation is unavailable, the workshop falls back to local cosine similarity so that the learning path remains runnable.
 
@@ -413,7 +413,7 @@ It stores an embedding array in `fraud_patterns.embedding`, creates a vector ind
 The optional path is implemented in:
 
 * `src/fraud_mitigation_agent/embeddings/automated_atlas.py`
-* `notebooks/advanced/06_automated_embeddings_atlas.ipynb`
+* `notebooks/advanced/06_automated_embeddings_atlas.ipynb` (self-contained equivalent, see section 13)
 
 It demonstrates an `autoEmbed` index definition and text-based vector search. Availability can depend on Atlas feature support, region, cluster configuration, API version, and preview status. It must never replace the manual path as the baseline.
 
@@ -428,13 +428,12 @@ It demonstrates an `autoEmbed` index definition and text-based vector search. Av
 `OpenAICompatibleProvider` can call any OpenAI-compatible chat endpoint when configured with:
 
 ```text
-LLM_PROVIDER=openai_compatible
 LLM_API_KEY=...
 LLM_BASE_URL=...
 LLM_MODEL=...
 ```
 
-No key or endpoint should be committed to GitHub. The optional provider is for explanation and experimentation; it is not trusted with the final risk decision.
+No key or endpoint should be committed to GitHub. The optional provider is for explanation and experimentation; it is not trusted with the final risk decision. `OpenAICompatibleProvider` is defined both in `src/fraud_mitigation_agent/llm/openai_compatible.py` and, identically, inline in `notebooks/core/01_prompt_agent.ipynb` (see section 13 on why teaching notebooks duplicate `src/` rather than import it).
 
 Because the workshop is meant to be reusable across clients that may not have a paid LLM subscription, participants should be free to point `LLM_BASE_URL` at any OpenAI-compatible endpoint. The following free tiers do not require a credit card at signup (verify current terms before each workshop, since limits and model names change over time):
 
@@ -458,6 +457,10 @@ A future provider abstraction may add structured tool calling. If implemented, p
 * prompt injection from transaction fields must be treated as untrusted input.
 
 ## 13. Notebook progression
+
+**Teaching model.** `00_setup_workshop` through `08_decision_engine`, plus `advanced/06_automated_embeddings_atlas`, are self-contained: each one defines its own copy of the agent code (Settings, InMemoryDB, tools, FraudAgent, ...) directly in code cells, growing cumulatively stage by stage, and imports nothing from `src/fraud_mitigation_agent`. This is deliberate — the point of the core route is to show a participant how each piece of the agent is written, not to demo an already-finished package. Code is duplicated across these notebooks on purpose (each one must run standalone, e.g. opened directly via its own "Open in Colab" link with no other notebook run first); `src/fraud_mitigation_agent` is not the source of truth for what these notebooks teach and must not be treated as such.
+
+`src/fraud_mitigation_agent` remains the polished, final reference implementation. It backs `tests/`, `advanced/09_realtime_fraud_engine` (wraps it in a synchronous service), and `advanced/10_evaluation_precision_recall` (runs it over labeled scenarios) — notebooks whose point is to *use* the finished agent, not build it. If you change agent behavior, decide deliberately whether the change belongs in the teaching notebooks (`notebooks/core/*.py`-equivalent cells), in `src/`, or in both — they are not kept in sync automatically.
 
 ### Core route
 

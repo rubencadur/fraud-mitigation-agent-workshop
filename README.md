@@ -36,16 +36,17 @@ Repositorio incremental para construir un prototipo didáctico de prevención de
 
 ## Ejecutar en Google Colab
 
-1. Abrir el notebook con el link "Open In Colab" correspondiente en la sección [Rutas](#rutas).
-2. En `00_setup_workshop`, `REPO_URL` ya viene precargada con este repositorio; cámbiala solo si vas a trabajar sobre tu propio fork.
-3. Crear en Colab Secret el valor `MONGODB_URI`.
-4. Ejecutar primero `00_setup_workshop`.
-5. Ejecutar los notebooks en orden.
+Los notebooks `00_setup_workshop` a `08_decision_engine`, y `advanced/06_automated_embeddings_atlas`, son autocontenidos: todo el código del agente vive dentro de sus propias celdas (crece etapa por etapa) y no dependen de clonar este repositorio ni de correr otro notebook antes. Puedes abrir cualquiera de ellos directo desde su link "Open In Colab" y correrlo de punta a punta.
 
-Los notebooks funcionan con `MockLLMProvider` sin API externa. Si quieres probar un LLM real, `OpenAICompatibleProvider` acepta cualquier endpoint compatible con la API de OpenAI, así que puedes usar cualquier servicio, propio o de un tercero. Configura opcionalmente en Colab Secrets:
+1. Abrir el notebook con el link "Open In Colab" correspondiente en la sección [Rutas](#rutas).
+2. (Opcional) Crear en Colab Secret el valor `MONGODB_URI` si quieres usar Atlas real en vez de la base en memoria.
+3. Ejecutar las celdas en orden, de arriba hacia abajo.
+
+`advanced/09_realtime_fraud_engine` y `advanced/10_evaluation_precision_recall` son la excepción: esos sí importan la implementación de referencia terminada desde `src/fraud_mitigation_agent/` (clonan el repo automáticamente la primera vez que corres su celda de setup si hace falta).
+
+Los notebooks funcionan con `MockLLMProvider` sin API externa. Si quieres probar un LLM real, `OpenAICompatibleProvider` (definido en `01_prompt_agent`, y disponible desde ahí en los notebooks siguientes) acepta cualquier endpoint compatible con la API de OpenAI, así que puedes usar cualquier servicio, propio o de un tercero. Configura opcionalmente en Colab Secrets:
 
 ```text
-LLM_PROVIDER=openai_compatible
 LLM_API_KEY=...
 LLM_BASE_URL=...
 LLM_MODEL=...

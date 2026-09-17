@@ -20,7 +20,12 @@ def make_evidence(transaction_id, score_result, decision, signals, rules, simila
         "signals": signals,
         "triggered_rules": rules,
         "similarity": similarity,
-        "trace": trace or [],
+        # Snapshot, not a reference: the caller (FraudAgent.analyze) appends
+        # this very tool's own result to `trace` right after calling this
+        # function, so aliasing the list here would make the evidence
+        # document contain itself (circular reference, breaks json.dumps
+        # and BSON serialization the moment persist=True is used).
+        "trace": list(trace) if trace else [],
         "config_version": config_version,
         "policy_version": policy_version,
         "source_tag": "fraud_mitigation_agent_workshop",
