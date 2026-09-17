@@ -54,7 +54,7 @@ LLM_MODEL=...
 
 ### Opciones gratuitas
 
-Estos tres servicios exponen un endpoint compatible con OpenAI y su capa gratuita no pide tarjeta de crédito al registrarse (verifica siempre los términos vigentes, ya que límites y modelos disponibles cambian con el tiempo):
+Estos tres servicios exponen un endpoint compatible con OpenAI y con capa gratuita (verifica siempre los términos vigentes, ya que límites y modelos disponibles cambian con el tiempo):
 
 | Proveedor | Obtener API key | `LLM_BASE_URL` | `LLM_MODEL` de ejemplo | Límites free tier (referencial) |
 |---|---|---|---|---|
