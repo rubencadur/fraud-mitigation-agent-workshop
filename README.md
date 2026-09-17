@@ -1,6 +1,6 @@
 # Fraud Mitigation Agent Workshop
 
-Repositorio incremental para construir un prototipo didáctico de prevención de fraude con Python, Google Colab, MongoDB Atlas Free y un LLM opcional.
+Repositorio incremental para construir un prototipo didáctico de prevención de fraude con Python, Google Colab, MongoDB Atlas Free y un LLM opcional. El agente usa Tools de LangChain orquestadas por un grafo de LangGraph — pero con el orden de ejecución fijo en código: el LLM nunca decide qué tool se llama ni en qué orden, así la decisión de fraude sigue siendo 100% determinística y auditable (ver `PROJECT_SPECIFICATION.md`, secciones 10 y 19).
 
 ## Especificación para continuidad
 

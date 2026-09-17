@@ -1,21 +1,19 @@
-"""Main orchestrator: chains the tools in a fixed order to reach a decision.
+"""Main orchestrator: runs a fixed-order LangGraph pipeline to reach a decision.
 
-This is deliberately NOT an LLM-driven tool-calling loop — the sequence
+This is deliberately NOT an LLM-driven tool-calling loop. The seven tools
 (transaction -> customer -> rules -> behavior -> similarity -> score/decide
--> persist) is hard-coded in `analyze()`. The LLM (via `self.provider`) is
-only ever asked to explain a decision already made by deterministic code, so
-it can never skip a step, invent evidence, or change the outcome.
+-> persist) are wired into a `StateGraph` with hard-coded edges in
+`graph.build_graph` — nothing in this class or in that graph lets an LLM
+choose which node runs next. The LLM (via `self.provider`) is only ever
+asked, after the graph finishes, to explain a decision already made by
+deterministic code, so it can never skip a step, invent evidence, or change
+the outcome.
 """
 import re
 import uuid
 from .models import AgentResponse
 from .llm.mock_provider import MockLLMProvider
-from .tools.transactions import get_transaction
-from .tools.customer_context import get_customer_state
-from .tools.rules import evaluate_rules
-from .tools.behavior import analyze_behavior
-from .tools.similarity import find_similar_fraud
-from .tools.decisions import score_and_decide, persist_decision
+from .graph import build_graph
 
 
 class FraudAgent:
@@ -26,58 +24,46 @@ class FraudAgent:
         # MockLLMProvider by default: the full analyze() pipeline below works
         # with zero API keys and zero network calls.
         self.provider = provider or MockLLMProvider()
+        # Built once per agent: wiring the graph's nodes and edges doesn't
+        # change between transactions, only the transaction_id passed to
+        # .invoke() in analyze() does.
+        self.graph = build_graph(db)
 
     def answer(self, prompt: str):
-        """Free-form Q&A path (no transaction analysis) — used by notebook 01
-        to demonstrate that the LLM only ever produces prose, never a decision."""
+        """Free-form Q&A path (no transaction analysis, no graph involved) —
+        used by notebook 01 to demonstrate that the LLM only ever produces
+        prose, never a decision."""
         return self.provider.complete(prompt, system="You are the Fraud Mitigation Agent, a concise workshop assistant.")
 
     def analyze(self, transaction_id: str, persist: bool = True):
-        """Run the full fixed pipeline for one transaction and return the decision + trace."""
-        trace = []
-        tx_result = get_transaction(self.db, transaction_id)
-        trace.append(tx_result.as_dict())
-        if tx_result.status != "success":
-            # Stop immediately: every later tool needs the transaction data,
-            # so a missing transaction can't proceed further.
-            return AgentResponse("error", tx_result.error, trace, str(uuid.uuid4())).as_dict()
-        transaction = tx_result.data
+        """Run the full graph for one transaction and return the decision + trace."""
+        # `trace` starts empty; AgentState's Annotated[list, operator.add]
+        # reducer makes LangGraph concatenate each node's contribution onto
+        # it instead of overwriting it.
+        state = self.graph.invoke({"transaction_id": transaction_id, "trace": [], "persist": persist})
+        if state.get("error"):
+            # Every node after a failure is a no-op (see graph.py), so the
+            # graph always reaches END even when a tool fails early.
+            return AgentResponse("error", state["error"], state["trace"], str(uuid.uuid4())).as_dict()
 
-        customer_result = get_customer_state(self.db, transaction["customer_id"])
-        trace.append(customer_result.as_dict())
-        # Missing customer state is tolerated (treated as an empty baseline)
-        # rather than fatal, so a first-time customer can still be scored.
-        customer = customer_result.data or {}
-
-        rules_result = evaluate_rules(self.db, transaction, customer)
-        trace.append(rules_result.as_dict())
-        behavior_result = analyze_behavior(transaction, customer)
-        trace.append(behavior_result.as_dict())
-        # Behavioral signal codes (e.g. "amount_deviation") feed the fallback
-        # text embedding when the transaction has no fraud_signature_text yet.
-        similarity_result = find_similar_fraud(self.db, transaction, behavior_result.data.get("signals", []))
-        trace.append(similarity_result.as_dict())
-
-        decision_result = score_and_decide(
-            self.db, transaction, behavior_result.data,
-            rules_result.data, similarity_result.data, trace,
-        )
-        trace.append(decision_result.as_dict())
-        persistence = None
-        if persist and decision_result.status == "success":
-            persistence = persist_decision(self.db, decision_result.data)
-            trace.append(persistence.as_dict())
-
-        data = decision_result.data if decision_result.status == "success" else {}
-        data["trace"] = trace
-        data["persisted"] = bool(persistence and persistence.status == "success")
+        data = {
+            "transaction_id": state["transaction"]["tx_id"],
+            "decision": state.get("decision"),
+            "risk_score": state.get("risk_score"),
+            "components": state.get("components"),
+            "reason_codes": state.get("reason_codes"),
+            "evidence": state.get("evidence"),
+            "config_version": (state.get("evidence") or {}).get("config_version"),
+            "trace": state["trace"],
+            "persisted": state.get("persisted", False),
+        }
         # The LLM only narrates the already-final decision/score/reasons —
         # it cannot alter them, since they were computed before this call.
         content = self.provider.complete(
             f"Explain the fraud decision {data.get('decision')} with score {data.get('risk_score')} and reasons {data.get('reason_codes')}",
             system="Explain only the supplied deterministic evidence.",
         )
-        return AgentResponse("final", content, trace, str(uuid.uuid4()), data).as_dict()
+        return AgentResponse("final", content, state["trace"], str(uuid.uuid4()), data).as_dict()
 
     def run(self, prompt: str, persist: bool = True):
         """Very small router: if the prompt looks like it references a

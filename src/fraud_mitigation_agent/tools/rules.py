@@ -4,16 +4,20 @@ Rules read their thresholds from `risk_rules_config` (a document, not
 hard-coded prompts), so a workshop participant can retune the workshop
 without touching this code — see PROJECT_SPECIFICATION.md section 3.
 """
-from ._common import run_tool
-from datetime import datetime
+from langchain_core.tools import tool
 
 
 def get_rules_config(db):
-    return run_tool("get_rules_config", lambda: db.risk_rules_config.find_one({"config_id": "risk_rules_config"}, {"_id": 0}))
+    """Standalone utility, not part of the fixed graph — evaluate_rules
+    reads risk_rules_config itself. Kept for ad-hoc inspection."""
+    return db.risk_rules_config.find_one({"config_id": "risk_rules_config"}, {"_id": 0})
 
 
-def evaluate_rules(db, transaction: dict, customer_state: dict | None = None):
-    def work():
+def make_evaluate_rules_tool(db):
+    @tool
+    def evaluate_rules(transaction: dict, customer_state: dict) -> dict:
+        """Evaluate configurable rules (thresholds live in risk_rules_config,
+        not hard-coded here or in a prompt)."""
         config = db.risk_rules_config.find_one({"config_id": "risk_rules_config"}, {"_id": 0}) or {}
         thresholds = config.get("thresholds", {})
         state = customer_state or {}
@@ -36,4 +40,5 @@ def evaluate_rules(db, transaction: dict, customer_state: dict | None = None):
         if hour < 6 or hour >= 23:
             triggered.append({"code": "odd_hour", "severity": "medium", "detail": hour})
         return {"triggered_rules": triggered, "config_version": config.get("version", "unknown"), "weights": config.get("weights", {})}
-    return run_tool("evaluate_rules", work)
+
+    return evaluate_rules

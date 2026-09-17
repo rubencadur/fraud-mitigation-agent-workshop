@@ -7,7 +7,7 @@ name = "fraud-mitigation-agent-workshop"
 version = "0.1.0"
 description = "Synthetic fraud prevention workshop with MongoDB Atlas and optional LLM"
 requires-python = ">=3.10"
-dependencies = ["pymongo[srv]>=4.10.1", "numpy>=1.26.0"]
+dependencies = ["pymongo[srv]>=4.10.1", "numpy>=1.26.0", "langchain-core>=0.3.0", "langgraph>=0.2.0"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

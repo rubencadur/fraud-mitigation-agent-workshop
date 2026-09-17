@@ -4,11 +4,16 @@ Distinct from rules.py: rules apply the same fixed thresholds to everyone,
 while these signals are relative to *this* customer's normal behavior (e.g.
 "5x this customer's average", not a fixed dollar amount).
 """
-from ._common import run_tool
+from langchain_core.tools import tool
 
 
-def analyze_behavior(transaction: dict, customer_state: dict):
-    def work():
+def make_analyze_behavior_tool():
+    """No `db` access here, so — unlike the other tools — this factory takes
+    no arguments to close over."""
+
+    @tool
+    def analyze_behavior(transaction: dict, customer_state: dict) -> dict:
+        """Detect statistical deviations from the customer's own baseline."""
         signals = []
         amount = float(transaction.get("amount", 0))
         average = float(customer_state.get("avg_amount", 0))
@@ -24,4 +29,5 @@ def analyze_behavior(transaction: dict, customer_state: dict):
         if geo > 500:
             signals.append({"code": "geo_deviation", "score": 25, "detail": f"{geo} km"})
         return {"signals": signals, "baseline": {"avg_amount": average, "p95_amount": customer_state.get("p95_amount")}}
-    return run_tool("analyze_behavior", work)
+
+    return analyze_behavior

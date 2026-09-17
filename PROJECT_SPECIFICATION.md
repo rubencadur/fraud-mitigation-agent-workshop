@@ -112,6 +112,7 @@ fraud-mitigation-agent-workshop/
 │   ├── db.py
 │   ├── engine.py
 │   ├── evaluation.py
+│   ├── graph.py
 │   ├── local.py
 │   ├── models.py
 │   ├── scoring.py
@@ -170,7 +171,7 @@ get_customer_state
        final_outcome + risk_evidence
 ```
 
-The `FraudAgent` orchestrates the flow. The agent does not independently invent a risk score. It executes explicit tools, passes their structured results into the deterministic scoring layer, and optionally uses an LLM only to explain the resulting evidence.
+The `FraudAgent` orchestrates the flow by building and invoking a LangGraph `StateGraph` (`graph.py`): seven nodes, each wrapping a LangChain tool (see section 10), connected by hard-coded `add_edge` calls in exactly the order above. The agent does not independently invent a risk score, and the graph never lets a model pick the next node — it executes the fixed sequence of tools, passes their structured results into the deterministic scoring layer, and only after the graph reaches `END` does it optionally call an LLM, solely to explain the resulting evidence.
 
 `RealtimeFraudEngine` is a synchronous reference wrapper around the same flow. It is not a production realtime service.
 
@@ -360,7 +361,17 @@ This is intentionally explicit because the source report contains an inconsisten
 
 ## 10. Tool contracts
 
-Every tool should return a `ToolResult` with:
+Each tool is a LangChain `@tool`, built by a `make_xxx_tool(db)` factory that
+closes over `db` (or, for tools that touch no database, a
+`make_xxx_tool()` factory with no arguments — see `behavior.py`). Factories
+live in `src/fraud_mitigation_agent/tools/*.py`; `graph.py` calls each
+factory once, wires the resulting tools into `StateGraph` nodes with
+hard-coded `add_edge` calls, and compiles the graph. **No node is chosen by
+an LLM** — see the invariant in section 19.
+
+Every tool call is wrapped by `run_tool(name, langchain_tool, tool_input)`
+(`tools/_common.py`), which calls `langchain_tool.invoke(tool_input)` and
+always returns a `ToolResult`:
 
 ```json
 {
@@ -379,21 +390,28 @@ Current tools:
 |---|---|
 | `get_transaction` | Fetch one transaction by `tx_id`. |
 | `get_customer_state` | Fetch one customer baseline by `customer_id`. |
-| `get_rules_config` | Fetch the current risk policy document. |
+| `get_rules_config` | Fetch the current risk policy document (standalone utility; not wired into the graph). |
 | `evaluate_rules` | Apply configurable rules to transaction plus customer state. |
 | `analyze_behavior` | Compare transaction features with the customer baseline. |
 | `find_similar_fraud` | Run Atlas Vector Search or local cosine fallback. |
 | `score_and_decide` | Combine components, produce a decision, and build evidence. |
-| `persist_decision` | Persist evidence and the latest final outcome. |
+| `persist_decision` | Persist evidence and the latest final outcome, or no-op when `persist=False`. |
+
+`score_components`, `decision_from_score`, `build_reason_codes` (scoring.py)
+and `make_evidence`/`persist_evidence` (audit.py, called from inside
+`score_and_decide`/`persist_decision`) are deliberately **not** Tools: they
+are pure functions or thin DB writes that the graph nodes call directly —
+not every step needs the `@tool` wrapper, only the ones that represent a
+"capability" a tool-calling framework would meaningfully describe.
 
 When adding a tool:
 
 1. Keep the tool single-purpose.
 2. Return structured data, not prose.
-3. Include useful evidence fields.
-4. Handle expected lookup failures explicitly.
+3. Give it a proper docstring and typed parameters — LangChain uses both to build the tool's `description` and `args` schema.
+4. Handle expected lookup failures explicitly (raise; `run_tool` converts it to `status="error"`).
 5. Add an offline test using `InMemoryDB`.
-6. Do not let an LLM directly bypass the deterministic contract.
+6. Wire it into `graph.py` with a fixed `add_edge`, never a conditional edge keyed on an LLM's output.
 
 ## 11. Vector Search paths
 
@@ -624,6 +642,7 @@ Prioritize work in this order:
 * Never replace synthetic fixtures with real customer data in a public repository.
 * Never claim that the workshop is production-ready because the demo returns a plausible decision.
 * Never let a natural-language model override a deterministic policy without an explicit, tested design change.
+* Never add a conditional LangGraph edge (or any other mechanism) that lets an LLM choose which tool/node runs next in `graph.py` or in a notebook's `build_graph`. Every edge must be `add_edge(fixed_a, fixed_b)`, decided by this code, not inferred from a model's output. If a future increment genuinely needs LLM-driven tool selection, that is a deliberate architecture change requiring a new, clearly-labeled agent — not a modification of this one.
 * Never expose full transaction or customer documents in logs by default.
 * Treat all external text fields as untrusted content.
 * Keep Atlas Free usage limited to workshop data and delete temporary network access after the exercise.
